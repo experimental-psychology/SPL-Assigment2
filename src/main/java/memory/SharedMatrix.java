@@ -6,6 +6,7 @@ public class SharedMatrix {
 
     public SharedMatrix() {
         // TODO: initialize empty matrix
+        
     }
 
     public SharedMatrix(double[][] matrix) {
