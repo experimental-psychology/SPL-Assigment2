@@ -23,21 +23,32 @@ public class SharedVector {
         }finally{
             readUnlock();
         }
+       
     }
 
     public int length() {
         // TODO: return vector length
+      readLock();
+    try {
         return vector.length;
+    } finally {
+        readUnlock();
+    }
     }
 
     public VectorOrientation getOrientation() {
         // TODO: return vector orientation
+        try {
         return this.orientation;
+    } finally {
+        readUnlock();
+    }
     }
 
     public void writeLock() {
         // TODO: acquire write lock
         lock.writeLock().lock();
+
     }
 
     public void writeUnlock() {
@@ -67,12 +78,59 @@ public class SharedVector {
        finally{
         writeUnlock();
        }
+        
     }
 
-    public void add(SharedVector other) {
-        // TODO: add two vectors
-
+   public void add(SharedVector other) {
+    if (other.length() != this.length()) {
+        throw new IllegalArgumentException("Dimensions mismatch: " + this.length() + " vs " + other.length());
     }
+
+    if (this == other) {
+        writeLock();
+        try {
+            for (int i = 0; i < vector.length; i++) {
+                vector[i] *= 2;
+            }
+        } finally {
+            writeUnlock();
+        }
+        return;
+    }
+
+    int myHash = System.identityHashCode(this);
+    int otherHash = System.identityHashCode(other);
+
+    if (myHash < otherHash) {
+        writeLock();
+        try {
+            other.readLock();
+            try {
+                for (int i = 0; i < vector.length; i++) {
+                    vector[i] += other.vector[i];
+                }
+            } finally {
+                other.readUnlock();
+            }
+        } finally {
+            writeUnlock();
+        }
+    } else {
+        other.readLock();
+        try {
+            writeLock();
+            try {
+                for (int i = 0; i < vector.length; i++) {
+                    vector[i] += other.vector[i];
+                }
+            } finally {
+                writeUnlock();
+            }
+        } finally {
+            other.readUnlock();
+        }
+    }
+}
 
     public void negate() {
         // TODO: negate vector
@@ -118,5 +176,66 @@ public class SharedVector {
 
     public void vecMatMul(SharedMatrix matrix) {
         // TODO: compute row-vector × matrix
+     if (matrix == null) {
+        throw new IllegalArgumentException("no such argument");
     }
+
+    int columnNumber = 0;
+
+    if (matrix.getOrientation() == VectorOrientation.ROW_MAJOR) {
+        columnNumber = matrix.get(0).length();
+        if (matrix.length() != vector.length) {
+            throw new IllegalArgumentException("Multiplication cannot be performed due to length mismatch.");
+        }
+    } else {
+        columnNumber = matrix.length();
+        if (matrix.get(0).length() != vector.length) {
+            throw new IllegalArgumentException("Multiplication cannot be performed due to length mismatch.");
+        }
+    }
+
+    double[] newv = new double[columnNumber];
+
+    readLock();
+    try {
+        if (matrix.getOrientation() == VectorOrientation.ROW_MAJOR) {
+            for (int i = 0; i < matrix.length(); i++) {
+                SharedVector vec = matrix.get(i);
+                vec.readLock();
+                try {
+                    double myScalar = this.vector[i];
+                    for (int j = 0; j < columnNumber; j++) {
+                        newv[j] += (myScalar * vec.vector[j]);
+                    }
+                } finally {
+                    vec.readUnlock();
+                }
+            }
+        } else {
+            for (int i = 0; i < matrix.length(); i++) {
+                SharedVector vec = matrix.get(i);
+                vec.readLock();
+                try {
+                    double result = 0;
+                    for (int j = 0; j < this.vector.length; j++) {
+                        result += (this.vector[j] * vec.vector[j]);
+                    }
+                    newv[i] = result;
+                } finally {
+                    vec.readUnlock();
+                }
+            }
+        }
+    } finally {
+        readUnlock();
+    }
+
+    writeLock();
+    try {
+        this.vector = newv;
+    } finally {
+        writeUnlock();
+    }
+}
+
 }
