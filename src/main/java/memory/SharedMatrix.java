@@ -5,12 +5,16 @@ public class SharedMatrix {
     private volatile SharedVector[] vectors = {}; // underlying vectors
 
     public SharedMatrix() {
-        // TODO: initialize empty matrix
-        
+        // TODO: initialize empty matrix 
+        this.vectors=new SharedVector[0];
     }
-
     public SharedMatrix(double[][] matrix) {
         // TODO: construct matrix as row-major SharedVectors
+        if(matrix==null)
+            throw new IllegalArgumentException("Matrix cant be null");
+        this.vectors=new SharedVector[matrix.length];
+        for (int i=0;i<matrix.length;i++)
+            this.vectors[i]=new SharedVector(matrix[i], VectorOrientation.ROW_MAJOR);
     }
 
     public void loadRowMajor(double[][] matrix) {
@@ -43,17 +47,27 @@ public class SharedMatrix {
 
     private void acquireAllVectorReadLocks(SharedVector[] vecs) {
         // TODO: acquire read lock for each vector
+        for (SharedVector vec:vecs)
+            vec.readLock();
+
     }
 
     private void releaseAllVectorReadLocks(SharedVector[] vecs) {
         // TODO: release read locks
+        for(int i=vecs.length-1;i>=0;i--)
+            vecs[i].readUnlock();
     }
 
     private void acquireAllVectorWriteLocks(SharedVector[] vecs) {
         // TODO: acquire write lock for each vector
+        for (SharedVector vec:vecs)
+            vec.writeLock();
+        
     }
 
     private void releaseAllVectorWriteLocks(SharedVector[] vecs) {
         // TODO: release write locks
+        for(int i=vecs.length-1;i>=0;i--)
+            vecs[i].writeUnlock();
     }
 }

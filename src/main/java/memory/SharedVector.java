@@ -28,20 +28,21 @@ public class SharedVector {
 
     public int length() {
         // TODO: return vector length
-      readLock();
-    try {
-        return vector.length;
-    } finally {
-        readUnlock();
-    }
+        readLock();
+        try {
+            return vector.length;
+        } finally {
+            readUnlock();
+        }
     }
 
     public VectorOrientation getOrientation() {
         // TODO: return vector orientation
+        readLock();
         try {
-        return this.orientation;
-    } finally {
-        readUnlock();
+            return this.orientation;
+        } finally {
+            readUnlock();
     }
     }
 
@@ -82,15 +83,15 @@ public class SharedVector {
     }
 
    public void add(SharedVector other) {
-    if (other.length() != this.length()) {
+    if(other==null)
+        throw new NullPointerException("Other cant be null");
+    if (other.length() != this.length())
         throw new IllegalArgumentException("Dimensions mismatch: " + this.length() + " vs " + other.length());
-    }
-
     if (this == other) {
         writeLock();
         try {
             for (int i = 0; i < vector.length; i++) {
-                vector[i] *= 2;
+                vector[i]=vector[i]*2;
             }
         } finally {
             writeUnlock();
@@ -121,7 +122,7 @@ public class SharedVector {
             writeLock();
             try {
                 for (int i = 0; i < vector.length; i++) {
-                    vector[i] += other.vector[i];
+                    vector[i]=vector[i]+other.vector[i];
                 }
             } finally {
                 writeUnlock();
@@ -146,14 +147,10 @@ public class SharedVector {
 
     public double dot(SharedVector other) {
         // TODO: compute dot product (row · column)
-        double dot=0;
+        double dot=0.0;
         if(other==null)
             throw new NullPointerException("Other cant be Null");
-        if(this.orientation==other.orientation)
-            throw new IllegalArgumentException("You must to choose one row and one calumn");
-        if(other.length()!=this.length() ) 
-            throw new IllegalArgumentException("Vectors length not equal");
-        if (this.length() == 0) //if this=0 so other=0 also, otherwise there is an Exception 
+        if (this.vector.length == 0) //if this=0 so other=0 also, otherwise there is an Exception 
             return 0;
         SharedVector first=this;
         SharedVector second=other;
@@ -164,8 +161,12 @@ public class SharedVector {
         first.readLock();
         second.readLock();
         try{
-            for(int i=0;i<vector.length;i++)
-                dot=dot+(vector[i]*other.vector[i]);
+            if(first.orientation==second.orientation)
+                throw new IllegalArgumentException("You must to choose one row and one calumn");
+            if(first.vector.length!=second.vector.length) 
+                throw new IllegalArgumentException("Vectors length not equal");
+            for(int i=0;i<first.vector.length;i++)
+                dot=dot+(first.vector[i]*second.vector[i]);
         }
         finally{
             second.readUnlock();
