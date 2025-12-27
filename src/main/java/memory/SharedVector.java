@@ -247,8 +247,4 @@ public class SharedVector
     }
 
 }
-
 }
-
-
-

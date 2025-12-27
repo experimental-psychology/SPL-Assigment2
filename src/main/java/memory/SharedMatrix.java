@@ -127,9 +127,8 @@ public class SharedMatrix {
 
     public VectorOrientation getOrientation() {
         // TODO: return orientation
-       if (vectors.length == 0)
-    return VectorOrientation.ROW_MAJOR; //defult
-
+        if (vectors.length == 0)
+            return VectorOrientation.ROW_MAJOR; //defult
         return vectors[0].getOrientation();
     }
 
