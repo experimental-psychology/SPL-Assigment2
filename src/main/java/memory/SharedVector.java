@@ -3,7 +3,8 @@ package memory;
 import java.util.ConcurrentModificationException;
 import java.util.concurrent.locks.ReadWriteLock;
 
-public class SharedVector {
+public class SharedVector 
+{
 
     private double[] vector;
     private VectorOrientation orientation;
@@ -96,29 +97,8 @@ public class SharedVector {
         } finally {
             writeUnlock();
         }
-        return;
-    }
 
-    int myHash = System.identityHashCode(this);
-    int otherHash = System.identityHashCode(other);
-
-    if (myHash < otherHash) {
-        writeLock();
-        try {
-            other.readLock();
-            try {
-                for (int i = 0; i < vector.length; i++) {
-                    vector[i] += other.vector[i];
-                }
-            } finally {
-                other.readUnlock();
-            }
-        } finally {
-            writeUnlock();
-        }
-    } else {
-        other.readLock();
-        try {
+        if (this == other) {
             writeLock();
             try {
                 for (int i = 0; i < vector.length; i++) {
@@ -127,11 +107,44 @@ public class SharedVector {
             } finally {
                 writeUnlock();
             }
-        } finally {
-            other.readUnlock();
+            return;
+        }
+        int myHash = System.identityHashCode(this);
+        int otherHash = System.identityHashCode(other);
+
+        if (myHash < otherHash) {
+            
+            writeLock();
+            try {
+                other.readLock();
+                try {
+                    for (int i = 0; i < vector.length; i++) {
+                        vector[i] += other.vector[i];
+                    }
+                } finally {
+                    other.readUnlock();
+                }
+            } finally {
+                writeUnlock();
+            }
+        } else
+             {
+            other.readLock();
+            try {
+                writeLock();
+                try {
+                    for (int i = 0; i < vector.length; i++) {
+                        vector[i] += other.vector[i];
+                    }
+                } finally {
+                    writeUnlock();
+                }
+            } finally {
+                other.readUnlock();
+            }
         }
     }
-}
+   }
 
     public void negate() {
         // TODO: negate vector
@@ -175,11 +188,12 @@ public class SharedVector {
         return dot;
     }
 
-    public void vecMatMul(SharedMatrix matrix) {
+    public void vecMatMul(SharedMatrix matrix) 
+ {
         // TODO: compute row-vector × matrix
      if (matrix == null) {
         throw new IllegalArgumentException("no such argument");
-    }
+      }
 
     int columnNumber = 0;
 
@@ -197,7 +211,7 @@ public class SharedVector {
 
     double[] newv = new double[columnNumber];
 
-    readLock();
+    writeLock();
     try {
         if (matrix.getOrientation() == VectorOrientation.ROW_MAJOR) {
             for (int i = 0; i < matrix.length(); i++) {
@@ -227,16 +241,14 @@ public class SharedVector {
                 }
             }
         }
+       this.vector = newv; 
     } finally {
-        readUnlock();
+       writeUnlock();
     }
 
-    writeLock();
-    try {
-        this.vector = newv;
-    } finally {
-        writeUnlock();
-    }
 }
 
 }
+
+
+
