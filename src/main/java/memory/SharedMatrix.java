@@ -1,13 +1,20 @@
 package memory;
-
+//@INV: Vectors != null
+//@INV: Vectors is an array of SharedVector
+//@INV: All vectors have the same orientation
+//@INV: Matrix is rectangular
+//@INV: Access to vector contents is protected by locks
 public class SharedMatrix {
 
     private volatile SharedVector[] vectors = {}; // underlying vectors
-
+    //@PRE: None
+    //@POST: length==0
     public SharedMatrix() {
         // TODO: initialize empty matrix 
         this.vectors=new SharedVector[0];
     }
+    //@PRE:matrix!=null
+    //@POST: All vectors are ROW_MAJOR
     public SharedMatrix(double[][] matrix) {
         // TODO: construct matrix as row-major SharedVectors
         if(matrix==null)
@@ -24,7 +31,8 @@ public class SharedMatrix {
         for (int i=0;i<matrix.length;i++)
             this.vectors[i]=new SharedVector(matrix[i], VectorOrientation.ROW_MAJOR);
     }
-
+    //@PRE: matrix!=null
+    //@POST:getOrientation()==ROW_MAJOR
     public void loadRowMajor(double[][] matrix){
         // TODO: replace internal data with new row-major matrix
         if(matrix == null)
@@ -44,7 +52,8 @@ public class SharedMatrix {
         }
         this.vectors = tempVecs;   
     }
-
+    //@PRE: matrix!=null
+    //@POST: getOrientation()==COLUMN_MAJOR
     public void loadColumnMajor(double[][] matrix){
         // TODO: replace internal data with new column-major matrix
         if(matrix == null) 
@@ -67,7 +76,8 @@ public class SharedMatrix {
         }
         this.vectors = newVectors;
     }
-
+    //@PRE: None
+    //@POST: New matrix
     public double[][] readRowMajor(){
         // TODO: return matrix contents as a row-major double[][]
         SharedVector[] local=this.vectors;
@@ -98,7 +108,8 @@ public class SharedMatrix {
             releaseAllVectorReadLocks(local);
         }
     }
-
+    //@PRE: 0<=index<length()
+    //@POST: return the value on the right index
     public SharedVector get(int index){
         // TODO: return vector at index
         SharedVector[] local=this.vectors;
@@ -106,12 +117,14 @@ public class SharedMatrix {
             throw new IndexOutOfBoundsException("Index out of bounds");
         return local[index];
     }
-
+    //@PRE: None
+    //@POST: return the length >= 0
     public int length() {
         // TODO: return number of stored vectors
         return vectors.length;
     }
-
+    //@PRE: None
+    //@POST: return the Orientation
     public VectorOrientation getOrientation() {
         // TODO: return orientation
         SharedVector[] local=this.vectors;
