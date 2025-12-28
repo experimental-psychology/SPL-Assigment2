@@ -12,6 +12,10 @@ public class SharedVector
 
     public SharedVector(double[] vector, VectorOrientation orientation) {
         // TODO: store vector data and its orientation
+        if(vector==null)
+            throw new NullPointerException("Vector cant be null");
+        if (orientation==null)
+            throw new NullPointerException("Orientation cant be null");
         this.vector=vector.clone();
         this.orientation=orientation;
     }
@@ -20,6 +24,8 @@ public class SharedVector
         // TODO: return element at index (read-locked)
         readLock();
         try{
+            if(index<0 || index>=vector.length)
+                throw new IndexOutOfBoundsException("Index out of bounds");
             return vector[index];
         }finally{
             readUnlock();
@@ -84,66 +90,52 @@ public class SharedVector
     }
 
    public void add(SharedVector other) {
-    if(other==null)
-        throw new NullPointerException("Other cant be null");
-    if (other.length() != this.length())
-        throw new IllegalArgumentException("Dimensions mismatch: " + this.length() + " vs " + other.length());
-    if (this == other) {
-        writeLock();
-        try {
-            for (int i = 0; i < vector.length; i++) {
-                vector[i]=vector[i]*2;
-            }
-        } finally {
-            writeUnlock();
-        }
-
+        if(other==null)
+            throw new NullPointerException("Other cant be null");
+        if(this.orientation!=other.orientation)
+            throw new IllegalArgumentException("Orientation mismatch");
+        if (other.length() != this.length())
+            throw new IllegalArgumentException("Dimensions mismatch");
         if (this == other) {
             writeLock();
             try {
-                for (int i = 0; i < vector.length; i++) {
-                    vector[i]=vector[i]+other.vector[i];
-                }
+                for (int i = 0; i < vector.length; i++)
+                    vector[i]=vector[i]*2;
             } finally {
                 writeUnlock();
             }
             return;
         }
-        int myHash = System.identityHashCode(this);
-        int otherHash = System.identityHashCode(other);
-
-        if (myHash < otherHash) {
-            
-            writeLock();
-            try {
-                other.readLock();
-                try {
-                    for (int i = 0; i < vector.length; i++) {
-                        vector[i] += other.vector[i];
-                    }
-                } finally {
-                    other.readUnlock();
-                }
-            } finally {
-                writeUnlock();
-            }
-        } else
-             {
-            other.readLock();
-            try {
-                writeLock();
-                try {
-                    for (int i = 0; i < vector.length; i++) {
-                        vector[i] += other.vector[i];
-                    }
-                } finally {
-                    writeUnlock();
-                }
-            } finally {
-                other.readUnlock();
+        SharedVector first=this;
+        SharedVector second=other;
+        boolean thisIsFirst=true;
+        if(System.identityHashCode(this)>System.identityHashCode(other)){
+            first=other;
+            second=this;
+            thisIsFirst=false;
+        }
+        if(thisIsFirst){
+            first.writeLock();
+            second.readLock();
+            try{
+                for(int i=0; i<vector.length;i++)
+                    this.vector[i]=this.vector[i]+other.vector[i];
+            } finally{
+                second.readUnlock();
+                first.writeUnlock();
             }
         }
-    }
+        else{
+            first.readLock();
+            second.writeLock();
+            try{
+                for(int i=0; i<vector.length;i++)
+                    this.vector[i]=this.vector[i]+other.vector[i];
+            } finally{
+                second.writeUnlock();
+                first.readUnlock();
+            }
+        }
    }
 
     public void negate() {
@@ -160,11 +152,8 @@ public class SharedVector
 
     public double dot(SharedVector other) {
         // TODO: compute dot product (row · column)
-        double dot=0.0;
         if(other==null)
             throw new NullPointerException("Other cant be Null");
-        if (this.vector.length == 0) //if this=0 so other=0 also, otherwise there is an Exception 
-            return 0;
         SharedVector first=this;
         SharedVector second=other;
         if(System.identityHashCode(this)>System.identityHashCode(other)){
@@ -175,76 +164,76 @@ public class SharedVector
         second.readLock();
         try{
             if(first.orientation==second.orientation)
-                throw new IllegalArgumentException("You must to choose one row and one calumn");
+                throw new IllegalArgumentException("You must to choose one row and one column");
             if(first.vector.length!=second.vector.length) 
                 throw new IllegalArgumentException("Vectors length not equal");
+            double dot=0.0;
             for(int i=0;i<first.vector.length;i++)
                 dot=dot+(first.vector[i]*second.vector[i]);
+            return dot;
         }
         finally{
             second.readUnlock();
             first.readUnlock();
         }
-        return dot;
     }
 
-    public void vecMatMul(SharedMatrix matrix) 
- {
+    public void vecMatMul(SharedMatrix matrix) {
         // TODO: compute row-vector × matrix
-     if (matrix == null) {
-        throw new IllegalArgumentException("no such argument");
-      }
-
-    int columnNumber = 0;
-
-    if (matrix.getOrientation() == VectorOrientation.ROW_MAJOR) {
-        columnNumber = matrix.get(0).length();
-        if (matrix.length() != vector.length) {
-            throw new IllegalArgumentException("Multiplication cannot be performed due to length mismatch.");
-        }
-    } else {
-        columnNumber = matrix.length();
-        if (matrix.get(0).length() != vector.length) {
-            throw new IllegalArgumentException("Multiplication cannot be performed due to length mismatch.");
-        }
-    }
-
-    double[] newv = new double[columnNumber];
-
-    writeLock();
-    try {
-        if (matrix.getOrientation() == VectorOrientation.ROW_MAJOR) {
-            for (int i = 0; i < matrix.length(); i++) {
-                SharedVector vec = matrix.get(i);
-                vec.readLock();
-                try {
-                    double myScalar = this.vector[i];
-                    for (int j = 0; j < columnNumber; j++) {
-                        newv[j] += (myScalar * vec.vector[j]);
+        if(matrix == null) 
+            throw new IllegalArgumentException("no such argument");
+        writeLock();
+        try{
+            if(this.orientation!=VectorOrientation.ROW_MAJOR)
+                throw new IllegalArgumentException("Vector must be row-major");
+            int rows = matrix.length();
+            if(rows == 0){
+                this.vector=new double[0];
+                return;
+            }
+            VectorOrientation matOrientation = matrix.getOrientation();
+            int thisLen = this.vector.length; 
+            int resultLength;
+            if(matOrientation==VectorOrientation.ROW_MAJOR){
+                if(rows!=thisLen)
+                    throw new IllegalArgumentException("Length mismatch");
+                resultLength = matrix.get(0).length();
+            }
+            else{
+                if(matrix.get(0).length()!=thisLen)
+                    throw new IllegalArgumentException("Length mismatch");
+                resultLength = rows;
+            }
+            double[] result=new double[resultLength];
+            if(matOrientation==VectorOrientation.ROW_MAJOR){
+                for (int i=0; i<rows; i++){
+                    SharedVector row = matrix.get(i);
+                    row.readLock();
+                    try{
+                        double scalar = this.vector[i];
+                        for (int j=0; j<resultLength; j++)
+                            result[j]=result[j]+(scalar*row.vector[j]); 
+                    }finally{
+                        row.readUnlock();
                     }
-                } finally {
-                    vec.readUnlock();
+                }
+            } else{
+                for(int i=0;i<rows; i++){
+                    SharedVector col=matrix.get(i);
+                    col.readLock();
+                    try{
+                        double sum=0.0;
+                        for(int j=0; j<thisLen; j++)
+                            sum=sum+(this.vector[j]*col.vector[j]);
+                        result[i]=sum;
+                    }finally{
+                        col.readUnlock();
+                    }
                 }
             }
-        } else {
-            for (int i = 0; i < matrix.length(); i++) {
-                SharedVector vec = matrix.get(i);
-                vec.readLock();
-                try {
-                    double result = 0;
-                    for (int j = 0; j < this.vector.length; j++) {
-                        result += (this.vector[j] * vec.vector[j]);
-                    }
-                    newv[i] = result;
-                } finally {
-                    vec.readUnlock();
-                }
-            }
+            this.vector = result; 
+            } finally {
+                writeUnlock();
         }
-       this.vector = newv; 
-    } finally {
-       writeUnlock();
     }
-
-}
 }
