@@ -13,7 +13,6 @@ public class TiredExecutor {
 
     public TiredExecutor(int numThreads) {
         // TODO
-        workers = null; // placeholder
     }
 
     public void submit(Runnable task) {
@@ -22,14 +21,41 @@ public class TiredExecutor {
 
     public void submitAll(Iterable<Runnable> tasks) {
         // TODO: submit tasks one by one and wait until all finish
-    }
+        for(Runnable task: tasks)
+            submit(task);
+            while (inFlight.get()>0){
+                try {
+                    wait();
+                }catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
 
-    public void shutdown() throws InterruptedException {
+    public void shutdown() throws InterruptedException{
         // TODO
+        for(TiredThread worker:workers)
+            worker.shutdown();
+         for(TiredThread worker:workers)
+            worker.join();
     }
 
     public synchronized String getWorkerReport() {
         // TODO: return readable statistics for each worker
-        return null;
+        String report="";
+        int i=1;
+        for(TiredThread worker:workers){
+            if(worker!=null){
+                report=report+"Worker number: "+i+": ";
+                report=report+"Name: "+worker.getName()+", ";
+                report=report+"Id: "+worker.getWorkerId()+", ";
+                report=report+"Fatigue: "+worker.getFatigue()+", ";
+                report=report+"Time Used: "+worker.getTimeUsed()+", ";
+                report=report+"Time Idle: "+worker.getTimeIdle();
+                report=report+"\n";
+            }
+            i++;
+        }
+        return report;
     }
 }
