@@ -34,42 +34,39 @@ public class LinearAlgebraEngine {
         // TODO: create compute tasks & submit tasks to executor
         ComputationNodeType type = node.getNodeType();
         List<ComputationNode> children = node.getChildren();
-        switch (type){
-            case NEGATE:{
-                double[][] mat = children.get(0).getMatrix();
-                leftMatrix.loadRowMajor(mat);
-                executor.submitAll(createNegateTasks());
-                node.resolve(leftMatrix.readRowMajor());
-                break;
-            }
-            case TRANSPOSE:{
-                double[][] mat = children.get(0).getMatrix();
-                leftMatrix.loadRowMajor(mat);
-                executor.submitAll(createTransposeTasks());
-                node.resolve(leftMatrix.readRowMajor());
-                break;
-            }
-            case ADD:{
-                double[][] left = children.get(0).getMatrix();
-                double[][] right = children.get(1).getMatrix();
-                leftMatrix.loadRowMajor(left);
-                rightMatrix.loadRowMajor(right);
-                executor.submitAll(createAddTasks());
-                node.resolve(leftMatrix.readRowMajor());
-                break;
-            }
-            case MULTIPLY:{
-                double[][] left = children.get(0).getMatrix();
-                double[][] right = children.get(1).getMatrix();
-                leftMatrix.loadRowMajor(left);
-                rightMatrix.loadColumnMajor(right);
-                executor.submitAll(createMultiplyTasks());
-                node.resolve(leftMatrix.readRowMajor());
-                break;
-            }
-            default:
-                throw new IllegalStateException("Invalid node type for computation");
+        if (type == ComputationNodeType.NEGATE){
+            double[][] mat = children.get(0).getMatrix();
+            leftMatrix.loadRowMajor(mat);
+            executor.submitAll(createNegateTasks());
+            node.resolve(leftMatrix.readRowMajor());
+            return;
         }
+        if(type == ComputationNodeType.TRANSPOSE){
+            double[][] mat = children.get(0).getMatrix();
+            leftMatrix.loadRowMajor(mat);
+            executor.submitAll(createTransposeTasks());
+            node.resolve(leftMatrix.readRowMajor());
+            return;
+        }
+        if(type == ComputationNodeType.ADD){
+            double[][] left = children.get(0).getMatrix();
+            double[][] right = children.get(1).getMatrix();
+            leftMatrix.loadRowMajor(left);
+            rightMatrix.loadRowMajor(right);
+            executor.submitAll(createAddTasks());
+            node.resolve(leftMatrix.readRowMajor());
+            return;
+        }
+        if (type == ComputationNodeType.MULTIPLY) {
+            double[][] left = children.get(0).getMatrix();
+            double[][] right = children.get(1).getMatrix();
+            leftMatrix.loadRowMajor(left);
+            rightMatrix.loadColumnMajor(right);
+            executor.submitAll(createMultiplyTasks());
+            node.resolve(leftMatrix.readRowMajor());
+            return;
+        }
+        throw new IllegalArgumentException("Invalid node");
     }
 
     public List<Runnable> createAddTasks() {
