@@ -104,11 +104,7 @@ public class SharedVector
    public void add(SharedVector other) {
         if(other==null)
             throw new NullPointerException("Other cant be null");
-        if(this.orientation!=other.orientation)
-            throw new IllegalArgumentException("Orientation mismatch");
-        if (other.length() != this.length())
-            throw new IllegalArgumentException("Dimensions mismatch");
-        if (this == other) {
+        if (this == other){
             writeLock();
             try {
                 for (int i = 0; i < vector.length; i++)
@@ -130,6 +126,10 @@ public class SharedVector
             first.writeLock();
             second.readLock();
             try{
+                if(this.orientation!=other.orientation)
+                    throw new IllegalArgumentException("Orientation mismatch");
+                if (this.vector.length != other.vector.length)
+                    throw new IllegalArgumentException("Dimensions mismatch");
                 for(int i=0; i<vector.length;i++)
                     this.vector[i]=this.vector[i]+other.vector[i];
             } finally{
@@ -141,6 +141,10 @@ public class SharedVector
             first.readLock();
             second.writeLock();
             try{
+                if(this.orientation!=other.orientation)
+                    throw new IllegalArgumentException("Orientation mismatch");
+                if (this.vector.length != other.vector.length)
+                    throw new IllegalArgumentException("Dimensions mismatch");
                 for(int i=0; i<vector.length;i++)
                     this.vector[i]=this.vector[i]+other.vector[i];
             } finally{
@@ -177,13 +181,13 @@ public class SharedVector
         first.readLock();
         second.readLock();
         try{
-            if(first.orientation==second.orientation)
+            if(this.orientation==other.orientation)
                 throw new IllegalArgumentException("You must to choose one row and one column");
-            if(first.vector.length!=second.vector.length) 
+            if(this.vector.length!=other.vector.length) 
                 throw new IllegalArgumentException("Vectors length not equal");
             double dot=0.0;
-            for(int i=0;i<first.vector.length;i++)
-                dot=dot+(first.vector[i]*second.vector[i]);
+            for(int i=0;i<this.vector.length;i++)
+                dot=dot+(this.vector[i]*other.vector[i]);
             return dot;
         }
         finally{

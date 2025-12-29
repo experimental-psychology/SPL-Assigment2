@@ -41,6 +41,8 @@ public class SharedMatrix {
             this.vectors = new SharedVector[0];
             return;
         }
+        if(matrix[0]==null)
+            throw new IllegalArgumentException("Cant be null");
         int cols=matrix[0].length;
         SharedVector[] tempVecs = new SharedVector[matrix.length];
         for(int i=0; i<matrix.length; i++){
@@ -63,6 +65,8 @@ public class SharedMatrix {
         return;
         }
         int rows=matrix.length;
+        if(matrix[0]==null)
+            throw new IllegalArgumentException("Cant be null");
         int cols=matrix[0].length;
         for(int i=1; i<rows; i++)
             if(matrix[i] == null || matrix[i].length != cols)
@@ -76,10 +80,12 @@ public class SharedMatrix {
         }
         this.vectors = newVectors;
     }
-    //@PRE: None
+    //@PRE: vectors!=null
     //@POST: New matrix
     public double[][] readRowMajor(){
         // TODO: return matrix contents as a row-major double[][]
+        if(vectors==null)
+            throw new NullPointerException("Vectors is null");
         SharedVector[] local=this.vectors;
         if(local.length==0)
            return new double[0][0];
@@ -108,25 +114,31 @@ public class SharedMatrix {
             releaseAllVectorReadLocks(local);
         }
     }
-    //@PRE: 0<=index<length()
+    //@PRE: 0<=index<length() & vectors!=null
     //@POST: return the value on the right index
     public SharedVector get(int index){
         // TODO: return vector at index
+        if(vectors==null)
+            throw new NullPointerException("Vectors is null");
         SharedVector[] local=this.vectors;
         if(index<0||index>=local.length)
             throw new IndexOutOfBoundsException("Index out of bounds");
         return local[index];
     }
-    //@PRE: None
+    //@PRE: vectors!=null
     //@POST: return the length >= 0
     public int length() {
         // TODO: return number of stored vectors
+        if(vectors==null)
+            throw new NullPointerException("Vectors is null");
         return vectors.length;
     }
-    //@PRE: None
+    //@PRE: vectors!=null
     //@POST: return the Orientation
     public VectorOrientation getOrientation() {
         // TODO: return orientation
+        if(vectors==null)
+            throw new NullPointerException("Vectors is null");
         SharedVector[] local=this.vectors;
         if (local.length == 0)
             return VectorOrientation.ROW_MAJOR; //defult
@@ -135,6 +147,8 @@ public class SharedMatrix {
 
     private void acquireAllVectorReadLocks(SharedVector[] vecs) {
         // TODO: acquire read lock for each vector
+        if(vecs==null)
+            throw new NullPointerException("vecs is null");
         for (SharedVector vec:vecs)
             vec.readLock();
 
@@ -142,12 +156,16 @@ public class SharedMatrix {
 
     private void releaseAllVectorReadLocks(SharedVector[] vecs) {
         // TODO: release read locks
+        if(vecs==null)
+            throw new NullPointerException("vecs is null");
         for(int i=vecs.length-1;i>=0;i--)
             vecs[i].readUnlock();
     }
 
     private void acquireAllVectorWriteLocks(SharedVector[] vecs) {
         // TODO: acquire write lock for each vector
+        if(vecs==null)
+            throw new NullPointerException("vecs is null");
         for (SharedVector vec:vecs)
             vec.writeLock();
         
@@ -155,6 +173,8 @@ public class SharedMatrix {
 
     private void releaseAllVectorWriteLocks(SharedVector[] vecs) {
         // TODO: release write locks
+        if(vecs==null)
+            throw new NullPointerException("vecs is null");
         for(int i=vecs.length-1;i>=0;i--)
             vecs[i].writeUnlock();
     }
