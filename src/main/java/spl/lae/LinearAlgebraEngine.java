@@ -25,18 +25,34 @@ public class LinearAlgebraEngine {
     //@POST:r.getNodeType()==MATRIX
     //@POST:The computation tree rooted at r is fully resolved (no pending operations)
     //@POST:For every node that was resolved during execution, node.resolve(resultMatrix) was called exactly once
-    public ComputationNode run(ComputationNode computationRoot) {
-        // TODO: resolve computation tree step by step until final matrix is produced
-        if(computationRoot==null)
-            throw new NullPointerException("computationRoot is null");
-        while(computationRoot.getNodeType()!=ComputationNodeType.MATRIX){
-            ComputationNode resolved=computationRoot.findResolvable();
-            if(resolved==null)
-                throw new IllegalStateException("Not found");
-            loadAndCompute(resolved);
+ public ComputationNode run(ComputationNode computationRoot) {
+   if (computationRoot == null)
+        throw new NullPointerException("computationRoot is null");
+
+    // Normalize: convert n-ary +/* into left-associative binary trees everywhere
+    List<ComputationNode> stack = new ArrayList<>();
+    stack.add(computationRoot);
+    while (!stack.isEmpty()) {
+        ComputationNode cur = stack.remove(stack.size() - 1);
+        if (cur.getNodeType() != ComputationNodeType.MATRIX) {
+            cur.associativeNesting();
+            List<ComputationNode> kids = cur.getChildren();
+            if (kids != null) {
+                for (ComputationNode k : kids) stack.add(k);
+            }
         }
-        return computationRoot;
     }
+
+    while (computationRoot.getNodeType() != ComputationNodeType.MATRIX) {
+        ComputationNode resolved = computationRoot.findResolvable();
+        if (resolved == null)
+            throw new IllegalStateException("No resolvable node found");
+        loadAndCompute(resolved);
+    }
+    return computationRoot;
+}
+
+
     //@PRE:node != null & node.getNodeType()!=null & node.getChildren()!=null
     //@PRE:If node.getNodeType()==NEGATE or TRANSPOSE: node.getChildren().size()==1
     //@PRE:If node.getNodeType()==ADD or MULTIPLY: node.getChildren().size()==2
@@ -50,68 +66,142 @@ public class LinearAlgebraEngine {
     public void loadAndCompute(ComputationNode node) {
         // TODO: load operand matrices
         // TODO: create compute tasks & submit tasks to executor
-        if(node==null)
-            throw new NullPointerException("Node is null");
-        ComputationNodeType type=node.getNodeType();
-        if(type==null)
-            throw new IllegalStateException("Node type is null");
-        List<ComputationNode> children=node.getChildren();
-        if(children==null)
-            throw new IllegalStateException("Children list is null");
-        if (type==ComputationNodeType.NEGATE){
-            if(children.size()!=1)
-                throw new IllegalArgumentException("Expected exactly one operand");
-            double[][] mat = children.get(0).getMatrix();
-            if(mat==null)
-                throw new IllegalStateException("matrix is null");
-            leftMatrix.loadRowMajor(mat);
-            executor.submitAll(createNegateTasks());
-            node.resolve(leftMatrix.readRowMajor());
-            return;
+    if (node == null)
+        throw new NullPointerException("Node is null");
+
+    ComputationNodeType type = node.getNodeType();
+    if (type == null)
+        throw new IllegalStateException("Node type is null");
+
+    List<ComputationNode> children = node.getChildren();
+    if (children == null)
+        throw new IllegalStateException("Children list is null");
+
+    if (type == ComputationNodeType.NEGATE) {
+        if (children.size() != 1)
+            throw new IllegalArgumentException("Expected exactly one operand");
+
+        double[][] mat = children.get(0).getMatrix();
+        if (mat == null)
+            throw new IllegalStateException("matrix is null");
+
+        leftMatrix.loadRowMajor(mat);
+        executor.submitAll(createNegateTasks());
+        node.resolve(leftMatrix.readRowMajor());
+        return;
+    }
+
+     if (type == ComputationNodeType.TRANSPOSE) {
+     if (children.size() != 1)
+        throw new IllegalArgumentException("Illegal operation: wrong number of operands");
+
+     double[][] a = children.get(0).getMatrix();
+     if (a == null)
+        throw new IllegalStateException("matrix is null");
+
+      leftMatrix.loadRowMajor(a);                 
+     executor.submitAll(createTransposeTasks()); 
+     node.resolve(leftMatrix.readRowMajor());    
+     return;
+    }
+
+    if (type == ComputationNodeType.ADD) {
+         if (children.size() < 2)
+            throw new IllegalArgumentException("ADD expects at least two operands");
+        if(children.size()!=2)
+            throw new IllegalArgumentException("Illegal operation: wrong number of operands");
+        double[][] acc = children.get(0).getMatrix();
+         if (acc == null)
+            throw new IllegalStateException("Operand matrix is null");
+
+       for (int r = 0; r < acc.length; r++) {
+             if (acc[r] == null)   
+                throw new IllegalArgumentException("Matrix row is null");
         }
-        if(type == ComputationNodeType.TRANSPOSE){
-            if(children.size()!=1)
-                throw new IllegalArgumentException("Expected exactly one operand");
-            double[][] mat = children.get(0).getMatrix();
-            if(mat==null)
-                throw new IllegalStateException("matrix is null");
-            leftMatrix.loadRowMajor(mat);
-            executor.submitAll(createTransposeTasks());
-            node.resolve(leftMatrix.readRowMajor());
-            return;
-        }
-        if(type == ComputationNodeType.ADD){
-            if(children.size()!=2)
-                throw new IllegalArgumentException("ADD expects two operands");
-            double[][] left = children.get(0).getMatrix();
-            double[][] right = children.get(1).getMatrix();
-            if(left==null||right==null)
-                throw new IllegalStateException("One or more matrix is null");
-            if(left.length!=right.length || left[0].length!=right[0].length)
-                throw new IllegalArgumentException("Matrix dismatch for ADD");
-            leftMatrix.loadRowMajor(left);
+
+
+        for (int i = 1; i < children.size(); i++) {
+            double[][] right = children.get(i).getMatrix();
+            if (right == null)
+                throw new IllegalStateException("Operand matrix is null");
+
+            if (acc.length != right.length)
+                throw new IllegalArgumentException("Matrix mismatch for ADD");
+
+            int accCols = (acc.length == 0 ? 0 : acc[0].length);
+            for (int rr = 0; rr < acc.length; rr++) {
+                if (acc[rr] == null)
+                    throw new IllegalArgumentException("Matrix row is null");
+                if (acc[rr].length != accCols)
+                    throw new IllegalArgumentException("Matrix must be rectangular");
+            }
+            int rightCols = (right.length == 0 ? 0 : right[0].length);
+             for (int rr = 0; rr < right.length; rr++) {
+                if (right[rr] == null)
+                    throw new IllegalArgumentException("Matrix row is null");
+                if (right[rr].length != rightCols)
+                    throw new IllegalArgumentException("Matrix must be rectangular");
+            }
+
+            if (accCols != rightCols)
+                throw new IllegalArgumentException("Matrix mismatch for ADD");
+
+            leftMatrix.loadRowMajor(acc);
             rightMatrix.loadRowMajor(right);
             executor.submitAll(createAddTasks());
-            node.resolve(leftMatrix.readRowMajor());
-            return;
+            acc = leftMatrix.readRowMajor();
         }
-        if (type == ComputationNodeType.MULTIPLY) {
-            if(children.size()!=2)
-                throw new IllegalArgumentException("MULTIPLY expects two operands");
-            double[][] left = children.get(0).getMatrix();
-            double[][] right = children.get(1).getMatrix();
-            if(left==null||right==null)
-                throw new IllegalStateException("One or more matrix is null");
-            if(left[0].length!=right.length)
-                throw new IllegalArgumentException("Matrix dismatch for MULTIPLY");
-            leftMatrix.loadRowMajor(left);
+
+        node.resolve(acc);
+        return;
+    }
+
+    if (type == ComputationNodeType.MULTIPLY) {
+        if (children.size() < 2)
+            throw new IllegalArgumentException("MULTIPLY expects at least two operands");
+        if(children.size()!=2)
+            throw new IllegalArgumentException("Illegal operation: wrong number of operands");
+
+        double[][] acc = children.get(0).getMatrix();
+        if (acc == null)
+            throw new IllegalStateException("Operand matrix is null");
+
+        for (int i = 1; i < children.size(); i++) {
+            double[][] right = children.get(i).getMatrix();
+            if (right == null)
+                throw new IllegalStateException("Operand matrix is null");
+
+            int accRows = acc.length;
+            int accCols = (accRows == 0 ? 0 : acc[0].length);
+            for (int rr = 0; rr < accRows; rr++) {
+                if (acc[rr] == null)
+                    throw new IllegalArgumentException("Matrix row is null");
+                if (acc[rr].length != accCols)
+                    throw new IllegalArgumentException("Matrix must be rectangular");
+            }
+
+            int rightRows = right.length;
+            int rightCols = (rightRows == 0 ? 0 : right[0].length);
+            for (int rr = 0; rr < rightRows; rr++) {
+                if (right[rr] == null)
+                    throw new IllegalArgumentException("Matrix row is null");
+                if (right[rr].length != rightCols)
+                    throw new IllegalArgumentException("Matrix must be rectangular");
+            }
+
+            if (accCols != rightRows)
+                throw new IllegalArgumentException("Matrix mismatch for MULTIPLY");
+            leftMatrix.loadRowMajor(acc);
             rightMatrix.loadColumnMajor(right);
             executor.submitAll(createMultiplyTasks());
-            node.resolve(leftMatrix.readRowMajor());
-            return;
+            acc = leftMatrix.readRowMajor();
         }
-        throw new IllegalArgumentException("Invalid node");
+        node.resolve(acc);
+        return;
     }
+    throw new IllegalArgumentException("Invalid node");
+}
+
     //@PRE:leftMatrix != null & rightMatrix != null & 
     //@POST:returns a mutable list tasks of size leftMatrix.length()
     public List<Runnable> createAddTasks() {

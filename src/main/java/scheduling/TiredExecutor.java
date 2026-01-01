@@ -43,63 +43,85 @@ public class TiredExecutor {
         Runnable wrapped = () -> {
             try {
                 task.run();
-            } finally {
-                synchronized (TiredExecutor.this) {
-                    idleMinHeap.add(worker);
-                    inFlight.decrementAndGet();
-                    TiredExecutor.this.notifyAll();
-                }
-            }
+         } finally {
+            synchronized (TiredExecutor.this) {
+            idleMinHeap.add(worker);   
+            inFlight.decrementAndGet();
+            TiredExecutor.this.notifyAll();
+        }
+    }
         };
-        try {
-            worker.newTask(wrapped);
-        } catch (RuntimeException e) {
-            synchronized (this) {
+             try {
+             worker.newTask(wrapped);
+             }catch (RuntimeException e) {
+                synchronized (this) { 
                 idleMinHeap.add(worker);
                 inFlight.decrementAndGet();
+                notifyAll();
                 notifyAll();
             }
             throw e;
         }
     }
 
-    public void submitAll(Iterable<Runnable> tasks) {
-        // TODO: submit tasks one by one and wait until all finish
-        for(Runnable task: tasks)
-            submit(task);
-            while (inFlight.get()>0){
-                try {
-                    wait();
+   public void submitAll(Iterable<Runnable> tasks) {
+    for (Runnable task : tasks) {
+        submit(task);
+    }
+         synchronized (this) {
+             while (inFlight.get() > 0) {
+                 try {
+                wait();
                 }catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                }
-            }
+                    throw new RuntimeException(e);
+                }   
         }
+    }
+}
+  public void shutdown() throws InterruptedException {
+    synchronized (this) {
+        while (inFlight.get() > 0) {
+            wait();
+        }
+    }
+    for (TiredThread worker : workers) {
+        worker.shutdown();
+    }
+    for (TiredThread worker : workers) {
+        worker.join();
+    }
+}
 
-    public void shutdown() throws InterruptedException{
-        // TODO
-        for(TiredThread worker:workers)
-            worker.shutdown();
-         for(TiredThread worker:workers)
-            worker.join();
+public synchronized String getWorkerReport() {
+    // return readable statistics for each worker
+    StringBuilder ret = new StringBuilder();
+    for (TiredThread worker : workers) {
+        String report = String.format(
+                "Worker %d: Time Used = %d ns, Time Idle = %d ns, Fatigue = %,2f\n",
+                worker.getWorkerId(),
+                worker.getTimeUsed(),
+                worker.getTimeIdle(),
+                worker.getFatigue()
+        );
+        ret.append(report);
     }
 
-    public synchronized String getWorkerReport() {
-        // TODO: return readable statistics for each worker
-        String report="";
-        int i=1;
-        for(TiredThread worker:workers){
-            if(worker!=null){
-                report=report+"Worker number: "+i+": ";
-                report=report+"Name: "+worker.getName()+", ";
-                report=report+"Id: "+worker.getWorkerId()+", ";
-                report=report+"Fatigue: "+worker.getFatigue()+", ";
-                report=report+"Time Used: "+worker.getTimeUsed()+", ";
-                report=report+"Time Idle: "+worker.getTimeIdle();
-                report=report+"\n";
-            }
-            i++;
-        }
-        return report;
+    double averageFatigue = 0.0;
+    for (TiredThread worker : workers) {
+        averageFatigue += worker.getFatigue();
     }
+    averageFatigue /= workers.length;
+
+    ret.append(String.format("Average Fatigue: %.2f\n", averageFatigue));
+
+    double fairness = 0.0;
+    for (TiredThread worker : workers) {
+        fairness += Math.pow(worker.getFatigue() - averageFatigue, 2);
+    }
+    ret.append("Fairness value: " + String.format("%.2f\n", fairness));
+
+    return ret.toString();
+}
+
 }
