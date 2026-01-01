@@ -33,6 +33,7 @@ public class Main {
             ComputationNode resultNode = engine.run(root);
 
             OutputWriter.write(resultNode.getMatrix(), outputPath);
+            System.out.println(engine.getWorkerReport());
 
             // --- Gilad Tester instrumentation:
             System.out.println(engine.getWorkerReport());
