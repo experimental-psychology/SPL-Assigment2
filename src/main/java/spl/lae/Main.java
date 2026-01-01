@@ -1,14 +1,11 @@
 package spl.lae;
 
 import java.io.IOException;
-
 import parser.*;
 
 public class Main {
     public static void main(String[] args) throws IOException {
         String outputPath = "output.json";
-        LinearAlgebraEngine lae = null;
-
         try {
             if (args == null || args.length != 3) {
                 throw new IllegalArgumentException(
@@ -32,24 +29,19 @@ public class Main {
             InputParser parser = new InputParser();
             ComputationNode root = parser.parse(inputPath);
 
-            lae = new LinearAlgebraEngine(numThreads);
-            ComputationNode resultNode = lae.run(root);
+            LinearAlgebraEngine engine = new LinearAlgebraEngine(numThreads);
+            ComputationNode resultNode = engine.run(root);
 
             OutputWriter.write(resultNode.getMatrix(), outputPath);
 
-            // >>> Gilad tester instrumentation (success path)
-            System.out.println(lae.getWorkerReport());
+            // --- Gilad Tester instrumentation:
+            System.out.println(engine.getWorkerReport());
 
         } catch (Throwable t) {
             try {
                 OutputWriter.write(t.getMessage(), outputPath);
-            } catch (Throwable ignored) {}
-
-            // >>> Gilad tester instrumentation (error path too)
-            if (lae != null) {
-                System.out.println(lae.getWorkerReport());
+            } catch (Throwable ignored) {
             }
-
             System.err.println(t.getMessage());
             t.printStackTrace();
         }

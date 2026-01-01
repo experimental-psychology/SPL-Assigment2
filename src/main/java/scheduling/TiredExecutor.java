@@ -63,22 +63,25 @@ public class TiredExecutor {
             throw e;
         }
     }
+ public void submitAll(Iterable<Runnable> tasks) {
+        if (tasks == null)
+            throw new NullPointerException("tasks is null");
 
-   public void submitAll(Iterable<Runnable> tasks) {
-    for (Runnable task : tasks) {
-        submit(task);
-    }
-         synchronized (this) {
-             while (inFlight.get() > 0) {
-                 try {
-                wait();
-                }catch (InterruptedException e) {
+        for (Runnable task : tasks) {
+            submit(task);
+        }
+
+        synchronized (this) {
+            while (inFlight.get() > 0) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    throw new RuntimeException(e);
-                }   
+                    throw new RuntimeException("Interrupted while waiting for tasks to finish", e);
+                }
+            }
         }
     }
-}
   public void shutdown() throws InterruptedException {
     synchronized (this) {
         while (inFlight.get() > 0) {
