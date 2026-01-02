@@ -150,7 +150,8 @@ public class SharedMatrix {
         if(vecs==null)
             throw new NullPointerException("vecs is null");
         for (SharedVector vec:vecs)
-            vec.readLock();
+            if(vec!=null)
+                vec.readLock();
 
     }
 
@@ -159,7 +160,8 @@ public class SharedMatrix {
         if(vecs==null)
             throw new NullPointerException("vecs is null");
         for(int i=vecs.length-1;i>=0;i--)
-            vecs[i].readUnlock();
+            if(vecs[i]!=null)
+                vecs[i].readUnlock();
     }
 
     private void acquireAllVectorWriteLocks(SharedVector[] vecs) {
@@ -167,7 +169,8 @@ public class SharedMatrix {
         if(vecs==null)
             throw new NullPointerException("vecs is null");
         for (SharedVector vec:vecs)
-            vec.writeLock();
+            if(vec!=null)
+                vec.writeLock();
         
     }
 
@@ -176,6 +179,7 @@ public class SharedMatrix {
         if(vecs==null)
             throw new NullPointerException("vecs is null");
         for(int i=vecs.length-1;i>=0;i--)
-            vecs[i].writeUnlock();
+            if(vecs[i]!=null)
+                vecs[i].writeUnlock();
     }
 }

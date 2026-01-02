@@ -76,9 +76,9 @@ public class TiredThread extends Thread implements Comparable<TiredThread> {
     //@PRE:task!=null & alive ==true
     //@POST:task is placed in handoff queue
     public void newTask(Runnable task) {   
-        if(task == null)
+        if(task==null)
             throw new NullPointerException("Task cannot be null");
-        if (!alive.get()) 
+        if(!alive.get()) 
             throw new IllegalStateException("Worker is shut down");
         handoff.add(task); 
     }

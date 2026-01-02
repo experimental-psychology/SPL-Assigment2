@@ -10,52 +10,85 @@ public class TiredExecutor {
     private final TiredThread[] workers;
     private final PriorityBlockingQueue<TiredThread> idleMinHeap = new PriorityBlockingQueue<>();
     private final AtomicInteger inFlight = new AtomicInteger(0);
-    //@PRE:
-    //@POST:workers.length==numThreads & inFlight==0
-    //@POST:all workers are started and idleMinHeap contains all workers
-    public TiredExecutor(int numThreads) {
-        // TODO
+
+    public TiredExecutor(int numThreads){
+        if(numThreads<=0)
+            throw new IllegalArgumentException("numThreads cant be under 1");
+           workers=new TiredThread[numThreads];
+           for(int i=0;i<numThreads;i++){
+                TiredThread newThread=new TiredThread(i, 0.5 + Math.random());
+                workers[i]=newThread;
+                idleMinHeap.add(newThread);
+                newThread.start();
+           }
     }
-    //@PRE:
-    //@POST:task is eventually executed
-    //@POST:inFlight increased by 1 before execution
-    //@POST:inFlight decreased by 1 after execution
-    public void submit(Runnable task) {
-        // TODO
+    public void submit(Runnable task){
+        if(task==null) 
+            throw new NullPointerException("task is null");
+        final TiredThread worker;
+        synchronized(this){
+            while(idleMinHeap.isEmpty()){
+                try{
+                    wait();
+                }catch(InterruptedException e){
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for idle worker", e);
+                }
+            }
+            TiredThread best=null;
+            for(TiredThread w:idleMinHeap)
+                if(best==null||w.compareTo(best)<0)
+                    best=w;
+            idleMinHeap.remove(best);
+            worker=best;
+            inFlight.incrementAndGet();
+        }
+        Runnable wrapped=()->{
+            try{
+                task.run();
+            }finally{
+                synchronized(TiredExecutor.this) {
+                    idleMinHeap.add(worker);
+                    inFlight.decrementAndGet();
+                    TiredExecutor.this.notifyAll();
+                }
+            }
+        };
+        try{
+            worker.newTask(wrapped);
+        }catch (RuntimeException e){
+            synchronized (this){
+                idleMinHeap.add(worker);
+                inFlight.decrementAndGet();
+                notifyAll();
+            }
+            throw e;
+        }
     }
-    //@PRE:tasks!=null
-    //@POST:all tasks have completed execution
     public void submitAll(Iterable<Runnable> tasks) {
         // TODO: submit tasks one by one and wait until all finish
-        if(tasks==null)
-            throw new NullPointerException("Tasks cant be null");
         for(Runnable task: tasks)
             submit(task);
+        synchronized(this){
             while (inFlight.get()>0){
                 try {
                     wait();
-                }catch (InterruptedException e) {
+                }catch (InterruptedException e){
                     Thread.currentThread().interrupt();
+                    throw new RuntimeException("Interrupted while waiting for task",e);
                 }
             }
         }
-    //@PRE:None
-    //@POST:all workers are shut down and threads are terminated
+    }
     public void shutdown() throws InterruptedException{
         // TODO
-        if(workers==null)
-            throw new NullPointerException("Workers is null");
         for(TiredThread worker:workers)
             worker.shutdown();
          for(TiredThread worker:workers)
             worker.join();
     }
-    //@PRE:None
-    //@POST:returns a readable report of all workers
     public synchronized String getWorkerReport() {
         // TODO: return readable statistics for each worker
-        if(workers==null)
-            throw new NullPointerException("Workers is null");
         String report="";
         int i=1;
         for(TiredThread worker:workers){
