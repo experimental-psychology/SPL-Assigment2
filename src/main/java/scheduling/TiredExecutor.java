@@ -5,56 +5,61 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.management.RuntimeErrorException;
+
 public class TiredExecutor {
 
     private final TiredThread[] workers;
     private final PriorityBlockingQueue<TiredThread> idleMinHeap = new PriorityBlockingQueue<>();
     private final AtomicInteger inFlight = new AtomicInteger(0);
 
-    public TiredExecutor(int numThreads) {
-           workers=new TiredThread[numThreads];
-           for(int i=0;i<numThreads;i++)
-           {
-                TiredThread newThread=new TiredThread(i, 0.5 + Math.random());
-                workers[i]=newThread;
-                idleMinHeap.add(newThread);
-                newThread.start();
-           }
+    public TiredExecutor(int numThreads){
+        if(numThreads<=0)
+            throw new IllegalArgumentException("Index cant be under 1");
+        workers=new TiredThread[numThreads];
+        for(int i=0;i<numThreads;i++){
+            TiredThread newThread=new TiredThread(i, 0.5 + Math.random());
+            workers[i]=newThread;
+            idleMinHeap.add(newThread);
+            newThread.start();
+        }
     }
-
-      public void submit(Runnable task) 
-      {
-        if (task == null) 
+    public void submit(Runnable task){
+        if(task==null) 
             throw new NullPointerException("task is null");
-
         final TiredThread worker;
-        synchronized (this) {
-            while (idleMinHeap.isEmpty()) {
-                try {
+        synchronized(this){
+            while(idleMinHeap.isEmpty()){
+                try{
                     wait();
-                } catch (InterruptedException e) {
+                }catch(InterruptedException e){
                     Thread.currentThread().interrupt();
                     throw new RuntimeException("Interrupted while waiting for idle worker", e);
                 }
             }
-            worker = idleMinHeap.poll();
+            TiredThread best=null;
+            for(TiredThread w:idleMinHeap)
+                if(best==null||w.compareTo(best)<0)
+                    best=w;
+            idleMinHeap.remove(best);
+            worker=best;
             inFlight.incrementAndGet();
         }
-        Runnable wrapped = () -> {
-            try {
+        Runnable wrapped=()->{
+            try{
                 task.run();
-            } finally {
-                synchronized (TiredExecutor.this) {
+            }finally{
+                synchronized(TiredExecutor.this) {
                     idleMinHeap.add(worker);
                     inFlight.decrementAndGet();
                     TiredExecutor.this.notifyAll();
                 }
             }
         };
-        try {
+        try{
             worker.newTask(wrapped);
-        } catch (RuntimeException e) {
-            synchronized (this) {
+        }catch (RuntimeException e){
+            synchronized (this){
                 idleMinHeap.add(worker);
                 inFlight.decrementAndGet();
                 notifyAll();
@@ -62,7 +67,6 @@ public class TiredExecutor {
             throw e;
         }
     }
-
     public void submitAll(Iterable<Runnable> tasks) {
         // TODO: submit tasks one by one and wait until all finish
         for(Runnable task: tasks)
@@ -77,7 +81,7 @@ public class TiredExecutor {
                 }
             }
         }
-
+    }
     public void shutdown() throws InterruptedException{
         // TODO
         for(TiredThread worker:workers)
@@ -85,7 +89,6 @@ public class TiredExecutor {
          for(TiredThread worker:workers)
             worker.join();
     }
-
     public synchronized String getWorkerReport() {
         // TODO: return readable statistics for each worker
         String report="";
