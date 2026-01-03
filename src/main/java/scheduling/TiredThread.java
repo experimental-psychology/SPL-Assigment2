@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicLong;
 //@INV:fatigueFactor>=0
 //@INV:alive==true implies thread may accept tasks
 //@INV:alive==false implies worker will eventually terminate
-//@INV:handoff!=null && handoff.capacity()==1
 //@INV:timeUsed>=0
 //@INV:timeIdle>=0
 //@INV:idleStartTime>=0
@@ -138,8 +137,8 @@ public class TiredThread extends Thread implements Comparable<TiredThread> {
     public int compareTo(TiredThread other){
         if(other==null)
             throw new NullPointerException("Other is null");
-        int result = Double.compare(this.getFatigue(), other.getFatigue());
-        if (result == 0)
+        int result=Double.compare(this.getFatigue(), other.getFatigue());
+        if(result==0)
             return Integer.compare(this.id, other.getWorkerId());
         return result;
     }

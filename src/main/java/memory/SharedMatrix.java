@@ -32,7 +32,6 @@ public class SharedMatrix {
             this.vectors[i]=new SharedVector(matrix[i], VectorOrientation.ROW_MAJOR);
     }
     //@PRE: matrix!=null
-    //@POST:getOrientation()==ROW_MAJOR
     public void loadRowMajor(double[][] matrix){
         // TODO: replace internal data with new row-major matrix
         if(matrix == null)
@@ -55,7 +54,6 @@ public class SharedMatrix {
         this.vectors = tempVecs;   
     }
     //@PRE: matrix!=null
-    //@POST: getOrientation()==COLUMN_MAJOR
     public void loadColumnMajor(double[][] matrix){
         // TODO: replace internal data with new column-major matrix
         if(matrix == null) 
@@ -81,7 +79,6 @@ public class SharedMatrix {
         this.vectors = newVectors;
     }
     //@PRE: vectors!=null
-    //@POST: New matrix
     public double[][] readRowMajor(){
         // TODO: return matrix contents as a row-major double[][]
         if(vectors==null)

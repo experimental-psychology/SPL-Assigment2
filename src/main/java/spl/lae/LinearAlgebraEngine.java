@@ -67,25 +67,14 @@ public class LinearAlgebraEngine {
             node.resolve(leftMatrix.readRowMajor());
             return;
         }
-        if(type==ComputationNodeType.TRANSPOSE){
-            if(children.size()!=1)
+        if(type == ComputationNodeType.TRANSPOSE){
+            if(children.size() != 1)
                 throw new IllegalArgumentException("Expected exactly one operand");
             double[][] mat = children.get(0).getMatrix();
-            if(mat==null)
+            if(mat == null)
                 throw new IllegalStateException("matrix is null");
             leftMatrix.loadRowMajor(mat);
-            double[][] original=leftMatrix.readRowMajor();
-            int rows=original.length;
-            int cols;
-            if(rows==0)
-                cols=0;
-            else
-                cols=original[0].length;
-            double[][] transposed = new double[cols][rows];
-            for(int i=0;i<rows;i++)
-                for(int j=0; j<cols; j++)
-                    transposed[j][i]=original[i][j];
-            leftMatrix.loadRowMajor(transposed);
+            executor.submitAll(createTransposeTasks());
             node.resolve(leftMatrix.readRowMajor());
             return;
         }

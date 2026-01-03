@@ -1,0 +1,5 @@
+memory\SharedMatrixBasicTests.class
+scheduling\TiredThreadBasicTests.class
+spl\lae\LinearAlgebraEngineBasicTests.class
+memory\SharedVectorTest.class
+scheduling\TiredExecutorBasicTests.class
