@@ -1,3 +1,0 @@
-{
-  "error" : "Usage: java -jar target/lga-1.0.jar <numberOfThreads> <inputFilePath> <outputFilePath>"
-}
