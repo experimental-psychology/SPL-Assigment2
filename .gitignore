@@ -1,2 +1,13 @@
+# Maven
 target/
-*.class
+
+# VSCode
+.vscode/
+
+# IntelliJ
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
